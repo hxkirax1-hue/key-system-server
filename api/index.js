@@ -8,7 +8,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
-const FIREBASE_URL = process.env.FIREBASE_URL || "https://key-system-10ff6-default-rtdb.firebaseio.com/";
+// وضع رابط Firebase مباشرة داخل الكود بدلاً من الإعدادات
+const FIREBASE_URL = "https://key-system-10ff6-default-rtdb.firebaseio.com/";
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -19,12 +20,12 @@ if (!admin.apps.length) {
 const db = admin.database();
 const keysRef = db.ref('keys');
 
-// عرض اللوحة
+// عرض واجهة اللوحة
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// باقي الـ APIs
+// جلب المفاتيح
 app.get('/api/keys', async (req, res) => {
   try {
     const snapshot = await keysRef.once('value');
@@ -36,6 +37,7 @@ app.get('/api/keys', async (req, res) => {
   }
 });
 
+// إنشاء مفتاح جديد
 app.post('/api/keys', async (req, res) => {
   const { name, maxDevices, durationDays } = req.body;
   if (!name) return res.status(400).json({ error: 'Key name required' });
@@ -55,6 +57,7 @@ app.post('/api/keys', async (req, res) => {
   }
 });
 
+// إعادة ضبط الأجهزة
 app.post('/api/keys/reset', async (req, res) => {
   const { key } = req.body;
   try {
@@ -65,6 +68,7 @@ app.post('/api/keys/reset', async (req, res) => {
   }
 });
 
+// حذف مفتاح
 app.post('/api/keys/delete', async (req, res) => {
   const { key } = req.body;
   try {
@@ -75,6 +79,7 @@ app.post('/api/keys/delete', async (req, res) => {
   }
 });
 
+// فحص المفتاح من تطبيقات الأندرويد (Sketchware)
 app.post('/api/verify', async (req, res) => {
   const { key, device_id } = req.body;
   if (!key) return res.json({ status: 'error', message: 'invalid' });
