@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة إدارة المفاتيح</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8f9fa; font-family: system-ui, -apple-system, sans-serif; padding: 20px; }
+    .card { border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+  </style>
+</head>
+<body>
+
+  <div class="container my-4">
+    <h2 class="mb-4 text-center">نظام إدارة المفاتيح</h2>
+
+    <!-- نموذج إنشاء مفتاح -->
+    <div class="card p-4 mb-4">
+      <h4>إنشاء مفتاح جديد</h4>
+      <form id="createKeyForm" class="row g-3 mt-1">
+        <div class="col-md-4">
+          <input type="text" id="keyName" class="form-control" placeholder="اسم المفتاح (مثال: KEY123)" required>
+        </div>
+        <div class="col-md-3">
+          <input type="number" id="maxDevices" class="form-control" placeholder="عدد الأجهزة المسموح" value="1" min="1" required>
+        </div>
+        <div class="col-md-3">
+          <input type="number" id="durationDays" class="form-control" placeholder="مدة الصلاحية (بالأيام)" value="30" min="1" required>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">إنشاء</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- جدول عرض المفاتيح -->
+    <div class="card p-4">
+      <h4>المفاتيح الحالية</h4>
+      <div class="table-responsive mt-3">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>المفتاح</th>
+              <th>الأجهزة المربوطة</th>
+              <th>الحد الأقصى</th>
+              <th>تاريخ الانتهاء</th>
+              <th>الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="keysTableBody">
+            <tr><td colspan="5" class="text-center">جاري تحميل المفاتيح...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function loadKeys() {
+      try {
+        const res = await fetch('/api/keys');
+        const keys = await res.json();
+        const tbody = document.getElementById('keysTableBody');
+        tbody.innerHTML = '';
+
+        if (!Array.isArray(keys) || keys.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">لا توجد مفاتيح حالياً</td></tr>';
+          return;
+        }
+
+        keys.forEach(k => {
+          const devicesCount = k.devices ? (Array.isArray(k.devices) ? k.devices.length : Object.keys(k.devices).length) : 0;
+          const expiresDate = new Date(k.expiresAt).toLocaleDateString('ar-EG');
+          
+          tbody.innerHTML += `
+            <tr>
+              <td><strong>${k.key}</strong></td>
+              <td>${devicesCount}</td>
+              <td>${k.maxDevices}</td>
+              <td>${expiresDate}</td>
+              <td>
+                <button class="btn btn-sm btn-warning me-1" onclick="resetKey('${k.key}')">إعادة ضبط الأجهزة</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteKey('${k.key}')">حذف</button>
+              </td>
+            </tr>
+          `;
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    document.getElementById('createKeyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('keyName').value.trim();
+      const maxDevices = document.getElementById('maxDevices').value;
+      const durationDays = document.getElementById('durationDays').value;
+
+      await fetch('/api/keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, maxDevices, durationDays })
+      });
+
+      document.getElementById('keyName').value = '';
+      loadKeys();
+    });
+
+    async function resetKey(key) {
+      if (!confirm('هل أنت تأكد من إعادة ضبط الأجهزة لهذا المفتاح؟')) return;
+      await fetch('/api/keys/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key })
+      });
+      loadKeys();
+    }
+
+    async function deleteKey(key) {
+      if (!confirm('هل أنت تأكد من حذف هذا المفتاح؟')) return;
+      await fetch('/api/keys/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key })
+      });
+      loadKeys();
+    }
+
+    loadKeys();
+  </script>
+</body>
+</html>
